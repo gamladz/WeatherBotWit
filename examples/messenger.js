@@ -52,7 +52,7 @@ if (!FB_PAGE_TOKEN) { throw new Error('missing FB_PAGE_TOKEN') }
 //const FB_APP_SECRET = FB_APP_SECRET;
 if (!FB_APP_SECRET) { throw new Error('missing FB_APP_SECRET') }
 
-let FB_VERIFY_TOKEN = null;
+  let FB_VERIFY_TOKEN = null;
 crypto.randomBytes(8, (err, buff) => {
   if (err) throw err;
   FB_VERIFY_TOKEN = "verify";
@@ -88,23 +88,60 @@ const fbMessage = (id, text) => {
 const sendCarouselMessage = (id, context) => {
 
   const university = context.university
-  console.log(university)
-  const body = JSON.stringify({
-    recipient: { id },
-    message: {
-    "attachment":{
-      "type":"template",
-      "payload":{
-        "template_type":"generic",
-        "elements":[
-          {
-            "title":university,
-            "image_url":"http://uclu.org/sites/uclu.org/files/styles/thumbnail-150x150/public/chinese_christmas.jpg?itok=HOOJAP8X",
-            "subtitle":"Anatomy B15",
-            "buttons":[
+  const urlString = 'http://www.houndly.co/'+university+'/events.json?page=1'
+  request(urlString, function(error, response, resBody) {
+
+    const elements = getElementsFromJson(resBody)
+
+    const body = JSON.stringify({
+      recipient: { id },
+      message: {
+        "attachment":{
+          "type":"template",
+          "payload":{
+            "template_type":"generic",
+            "elements": elements
+          }
+        }
+      }
+      ,
+    });
+
+    const qs = 'access_token=' + encodeURIComponent(FB_PAGE_TOKEN);
+    return fetch('https://graph.facebook.com/me/messages?' + qs, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body,
+    })
+    .then(rsp => rsp.json())
+    .then(json => {
+      if (json.error && json.error.message) {
+        throw new Error(json.error.message);
+      }
+      return json;
+    });
+
+  });
+};
+
+function getElementsFromJson(JSONbody) {
+  
+  var elements = [];
+  var json = JSON.parse(JSONbody);
+          //get evenrs array from json var events = json.events
+          var events = json.events 
+          var length = events.length;
+          for (var i = 0; i < 10 ; i++){
+            var eventJson = events[i]
+
+            var element =             {
+              "title":eventJson.title,
+              "image_url":eventJson.image_link,
+              "subtitle":eventJson.location,
+              "buttons":[
               {
                 "type":"web_url",
-                "url":"http://uclu.org/whats-on/clubs-societies/chinese-christmas-party",
+                "url":eventJson.source_url,
                 "title":"View Website"
               },
               {
@@ -112,62 +149,14 @@ const sendCarouselMessage = (id, context) => {
                 "title":"More info",
                 "payload":"USER_DEFINED_PAYLOAD"
               }              
-            ]
-          },          {
-            "title":"Welcome to Peter\'s Hats",
-            "image_url":"http://petersapparel.parseapp.com/img/item100-thumb.png",
-            "subtitle":"We\'ve got the right hat for everyone.",
-            "buttons":[
-              {
-                "type":"web_url",
-                "url":"https://petersapparel.parseapp.com/view_item?item_id=100",
-                "title":"View Website"
-              },
-              {
-                "type":"postback",
-                "title":"Start Chatting",
-                "payload":"USER_DEFINED_PAYLOAD"
-              }              
-            ]
-          },          {
-            "title":"Welcome to Peter\'s Hats",
-            "image_url":"http://petersapparel.parseapp.com/img/item100-thumb.png",
-            "subtitle":"We\'ve got the right hat for everyone.",
-            "buttons":[
-              {
-                "type":"web_url",
-                "url":"https://petersapparel.parseapp.com/view_item?item_id=100",
-                "title":"View Website"
-              },
-              {
-                "type":"postback",
-                "title":"Start Chatting",
-                "payload":"USER_DEFINED_PAYLOAD"
-              }              
-            ]
+              ]
+            }
+            //create element from json
+
+            elements.push(element);
           }
-        ]
-      }
-    }
-}
-,
-  });
-
-  const qs = 'access_token=' + encodeURIComponent(FB_PAGE_TOKEN);
-  return fetch('https://graph.facebook.com/me/messages?' + qs, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body,
-  })
-  .then(rsp => rsp.json())
-  .then(json => {
-    if (json.error && json.error.message) {
-      throw new Error(json.error.message);
-    }
-    return json;
-  });
-
-};
+          return elements;
+        }
 
 // ----------------------------------------------------------------------------
 // Wit.ai bot specific code
@@ -200,9 +189,9 @@ const findOrCreateSession = (fbid) => {
 
 const firstEntityValue = (entities, entity) => {
   const val = entities && entities[entity] &&
-    Array.isArray(entities[entity]) &&
-    entities[entity].length > 0 &&
-    entities[entity][0].value
+  Array.isArray(entities[entity]) &&
+  entities[entity].length > 0 &&
+  entities[entity][0].value
   ;
   if (!val) {
     return null;
@@ -232,7 +221,7 @@ const actions = {
           recipientId,
           ':',
           err.stack || err
-        );
+          );
       });
     } else {
       console.error('Oops! Couldn\'t find user for session:', sessionId);
@@ -258,7 +247,7 @@ const actions = {
 
 
       //   fetch('http://api.openweathermap.org/data/2.5/weather?q=' + location + '&APPID=628079360ba09956bd8afc86d62740d8')
-            
+
       //       .then(function(res) {
       //         return res.json();
       //     }).then(function(json) {
@@ -271,13 +260,13 @@ const actions = {
       //    ;
 
       // delete context.missingLocation;
-      } else {
-        context.missingLocation = true;
-        delete context.forecast;
-      }
-      return resolve(context);
-    });
-  },
+    } else {
+      context.missingLocation = true;
+      delete context.forecast;
+    }
+    return resolve(context);
+  });
+},
 
 };
 
@@ -303,9 +292,9 @@ app.get('/webhook', (req, res) => {
   if (req.query['hub.mode'] === 'subscribe' &&
     req.query['hub.verify_token'] === FB_VERIFY_TOKEN) {
     res.send(req.query['hub.challenge']);
-  } else {
-    res.sendStatus(400);
-  }
+} else {
+  res.sendStatus(400);
+}
 });
 
 // Message handler
@@ -344,7 +333,7 @@ app.post('/webhook', (req, res) => {
               sessionId, // the user's current session
               text, // the user's message
               sessions[sessionId].context // the user's current session state
-            ).then((context) => {
+              ).then((context) => {
               // Our bot did everything it has to do.
               // Now it's waiting for further messages to proceed.
               console.log('Waiting for next user messages');
@@ -359,17 +348,17 @@ app.post('/webhook', (req, res) => {
               // Updating the user's current session state
               sessions[sessionId].context = context;
             })
-            .catch((err) => {
-              console.error('Oops! Got an error from Wit: ', err.stack || err);
-            })
+              .catch((err) => {
+                console.error('Oops! Got an error from Wit: ', err.stack || err);
+              })
+            }
+          } else {
+            console.log('received event', JSON.stringify(event));
           }
-        } else {
-          console.log('received event', JSON.stringify(event));
-        }
-      });
-    });
-  }
-  res.sendStatus(200);
+        });
+});
+}
+res.sendStatus(200);
 });
 
 /*
@@ -381,7 +370,7 @@ app.post('/webhook', (req, res) => {
  *
  */
 
-function verifyRequestSignature(req, res, buf) {
+ function verifyRequestSignature(req, res, buf) {
   var signature = req.headers["x-hub-signature"];
 
   if (!signature) {
@@ -394,8 +383,8 @@ function verifyRequestSignature(req, res, buf) {
     var signatureHash = elements[1];
 
     var expectedHash = crypto.createHmac('sha1', FB_APP_SECRET)
-                        .update(buf)
-                        .digest('hex');
+    .update(buf)
+    .digest('hex');
 
     if (signatureHash != expectedHash) {
       throw new Error("Couldn't validate the request signature.");
