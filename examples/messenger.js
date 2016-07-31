@@ -35,7 +35,7 @@ try {
 const FB_PAGE_TOKEN = 'EAAPZCc2rBmiMBAIjkSwcR0RKJQJ9Cxti654gAytRSZB5Unfh5fqHPFj8OMz4zgXsN2ipGwlGigG2SMaZCjSytIOjxvAw6IeIXXWdoZAZCrWEf2ZCsZA64ZAUeDL4r5ffbI9gdvm6ZBkZCLWh8nBO6dUEVL7pJ2TCLTLR0Qh0OoRKoApAZDZD'
 const FB_PAGE_ID = '1162815120424133'
 const FB_APP_SECRET ='0d2c5c281474bc2901cc543981fcca1b'
-const WIT_TOKEN = '6RUI6UMULR3RMKLXC36YEK2YFZYHDTME'
+const WIT_TOKEN = 'I2H2JJZRLZYG6M7RM7Q6OL6HOA4XESXN'
 
 
 // Webserver parameter
@@ -55,7 +55,7 @@ if (!FB_APP_SECRET) { throw new Error('missing FB_APP_SECRET') }
 let FB_VERIFY_TOKEN = null;
 crypto.randomBytes(8, (err, buff) => {
   if (err) throw err;
-  FB_VERIFY_TOKEN = buff.toString('hex');
+  FB_VERIFY_TOKEN = "verify";
   console.log(`/webhook will accept the Verify Token "${FB_VERIFY_TOKEN}"`);
 });
 
@@ -83,6 +83,90 @@ const fbMessage = (id, text) => {
     }
     return json;
   });
+};
+
+const sendCarouselMessage = (id, context) => {
+
+  const university = context.university
+  console.log(university)
+  const body = JSON.stringify({
+    recipient: { id },
+    message: {
+    "attachment":{
+      "type":"template",
+      "payload":{
+        "template_type":"generic",
+        "elements":[
+          {
+            "title":university,
+            "image_url":"http://uclu.org/sites/uclu.org/files/styles/thumbnail-150x150/public/chinese_christmas.jpg?itok=HOOJAP8X",
+            "subtitle":"Anatomy B15",
+            "buttons":[
+              {
+                "type":"web_url",
+                "url":"http://uclu.org/whats-on/clubs-societies/chinese-christmas-party",
+                "title":"View Website"
+              },
+              {
+                "type":"postback",
+                "title":"More info",
+                "payload":"USER_DEFINED_PAYLOAD"
+              }              
+            ]
+          },          {
+            "title":"Welcome to Peter\'s Hats",
+            "image_url":"http://petersapparel.parseapp.com/img/item100-thumb.png",
+            "subtitle":"We\'ve got the right hat for everyone.",
+            "buttons":[
+              {
+                "type":"web_url",
+                "url":"https://petersapparel.parseapp.com/view_item?item_id=100",
+                "title":"View Website"
+              },
+              {
+                "type":"postback",
+                "title":"Start Chatting",
+                "payload":"USER_DEFINED_PAYLOAD"
+              }              
+            ]
+          },          {
+            "title":"Welcome to Peter\'s Hats",
+            "image_url":"http://petersapparel.parseapp.com/img/item100-thumb.png",
+            "subtitle":"We\'ve got the right hat for everyone.",
+            "buttons":[
+              {
+                "type":"web_url",
+                "url":"https://petersapparel.parseapp.com/view_item?item_id=100",
+                "title":"View Website"
+              },
+              {
+                "type":"postback",
+                "title":"Start Chatting",
+                "payload":"USER_DEFINED_PAYLOAD"
+              }              
+            ]
+          }
+        ]
+      }
+    }
+}
+,
+  });
+
+  const qs = 'access_token=' + encodeURIComponent(FB_PAGE_TOKEN);
+  return fetch('https://graph.facebook.com/me/messages?' + qs, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body,
+  })
+  .then(rsp => rsp.json())
+  .then(json => {
+    if (json.error && json.error.message) {
+      throw new Error(json.error.message);
+    }
+    return json;
+  });
+
 };
 
 // ----------------------------------------------------------------------------
@@ -137,7 +221,10 @@ const actions = {
       // Yay, we found our recipient!
       // Let's forward our bot response to her.
       // We return a promise to let our bot know when we're done sending
-      return fbMessage(recipientId, text)
+
+      var context = sessions[sessionId].context;
+
+      return sendCarouselMessage(recipientId, context)
       .then(() => null)
       .catch((err) => {
         console.error(
@@ -155,29 +242,35 @@ const actions = {
   },
   // You should implement your custom actions here
   // See https://wit.ai/docs/quickstart
-  getForecast({context, entities}) {
+  fetch_events({sessionId, context, text, entities}) {
     return new Promise(function(resolve, reject) {
-      var location = firstEntityValue(entities, 'location')
-      if (location) {
+      var university = firstEntityValue(entities, 'university')
+      if (university) {
 
-        delete context.missingLocation;
-        //context.forecast = 'sunny in ' + location ; // we should call a weather API here
+        console.log(university)
+
+        context.university = university;
+        sessions[sessionId].context = context;
+        return resolve(context);
+
+      //   delete context.missingLocation;
+      //   //context.forecast = 'sunny in ' + location ; // we should call a weather API here
 
 
-        fetch('http://api.openweathermap.org/data/2.5/weather?q=' + location + '&APPID=628079360ba09956bd8afc86d62740d8')
+      //   fetch('http://api.openweathermap.org/data/2.5/weather?q=' + location + '&APPID=628079360ba09956bd8afc86d62740d8')
             
-            .then(function(res) {
-              return res.json();
-          }).then(function(json) {
-              var description = (json['weather'][0]['description']);
-              console.log(description);
-              //return desrcription;
-              return context.forecast = 'mainly ' + description + ' in ' + location
-           });
+      //       .then(function(res) {
+      //         return res.json();
+      //     }).then(function(json) {
+      //         var description = (json['weather'][0]['description']);
+      //         console.log(description);
+      //         //return desrcription;
+      //         return context.forecast = 'mainly ' + description + ' in ' + location
+      //      });
 
-         ;
+      //    ;
 
-      delete context.missingLocation;
+      // delete context.missingLocation;
       } else {
         context.missingLocation = true;
         delete context.forecast;
